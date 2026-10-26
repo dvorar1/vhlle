@@ -777,12 +777,29 @@ void MultiHydro::frictionSubstep()
     Nbtunisub=abs(_Q_t[4]/tauf*unification_factor_vt*unification_factor_t);
     }
 
+    // Baryon transfer must carry the donor fluid's local electric-charge
+    // fraction.  Passing zero here left all charge in the projectile/target
+    // fluids while their baryon number was deposited into the fireball.
+    // Use the conserved cell components for the ratio: their common Milne and
+    // volume factors cancel, and no additional EoS inversion is required.
+    const double baryonFluxP = nbflux_p + nbflux_pf;
+    const double baryonFluxT = nbflux_t + nbflux_tf;
+    const double chargePerBaryonP = std::abs(_Q_p[NB_]) > 1.e-14
+                                      ? _Q_p[NQ_] / _Q_p[NB_] : 0.;
+    const double chargePerBaryonT = std::abs(_Q_t[NB_]) > 1.e-14
+                                      ? _Q_t[NQ_] / _Q_t[NB_] : 0.;
+    const double chargeTransferP = baryonFluxP * taup * chargePerBaryonP;
+    const double chargeTransferT = baryonFluxT * taut * chargePerBaryonT;
+
     c_p->addFlux((flux_p[0]+flux_pf[0])*taup, (flux_p[1]+flux_pf[1])*taup,
-     (flux_p[2]+flux_pf[2])*taup, (flux_p[3]+flux_pf[3])*taup,(nbflux_p+nbflux_pf)*taup, 0., 0.);
+     (flux_p[2]+flux_pf[2])*taup, (flux_p[3]+flux_pf[3])*taup,
+     baryonFluxP*taup, chargeTransferP, 0.);
     c_t->addFlux((flux_t[0]+flux_tf[0])*taut, (flux_t[1]+flux_tf[1])*taut,
-     (flux_t[2]+flux_tf[2])*taut, (flux_t[3]+flux_tf[3])*taut, (nbflux_t+nbflux_tf)*taut, 0., 0.);
+     (flux_t[2]+flux_tf[2])*taut, (flux_t[3]+flux_tf[3])*taut,
+     baryonFluxT*taut, chargeTransferT, 0.);
     c_f->addFlux((-flux_pf[0]-flux_tf[0]-flux_p[0]-flux_t[0])*tauf, (-flux_pf[1]-flux_tf[1]-flux_p[1]-flux_t[1])*tauf,
-     (-flux_pf[2]-flux_tf[2]-flux_p[2]-flux_t[2])*tauf, (-flux_pf[3]-flux_tf[3]-flux_p[3]-flux_t[3])*tauf, (-nbflux_pf-nbflux_tf-nbflux_p-nbflux_t)*tauf, 0., 0.);
+     (-flux_pf[2]-flux_tf[2]-flux_p[2]-flux_t[2])*tauf, (-flux_pf[3]-flux_tf[3]-flux_p[3]-flux_t[3])*tauf,
+     (-baryonFluxP-baryonFluxT)*tauf, -chargeTransferP-chargeTransferT, 0.);
     c_p->updateByFrictionFlux();
     c_t->updateByFrictionFlux();
     c_f->updateByFrictionFlux();
